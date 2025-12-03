@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py. class
+*.so
+.Python
+venv/
+env/
+ENV/
+*. egg-info/
+
+# Secrets - CRITICAL: NEVER COMMIT THESE
+secrets/
+*. json
+*.pem
+*.key
+. env
+.env.local
+*. credentials
+*-key.json
+service-account*. json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# IDE & Cloud9
+.c9/
+. vscode/
+. idea/
+*. swp
+*.swo
+*~
+.DS_Store
+
+# AWS
+.aws/
+aws-credentials.txt
+
+# Logs
+*.log
+logs/
+
+# More specific exclusions
+firebase*. json
+firebase*.jsonbk
+*service-account*
+*. pybk
+*.htmlbk
+*~

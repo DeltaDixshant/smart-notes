@@ -1,0 +1,76 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.card {
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.note-card {
+    margin-bottom: 20px;
+    cursor: pointer;
+}
+
+.note-title {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.note-content {
+    color: #7f8c8d;
+    white-space: pre-wrap;
+}
+
+.note-meta {
+    font-size: 0.8rem;
+    color: #95a5a6;
+}
+
+.btn-action {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+.search-container {
+    position: relative;
+}
+
+.search-highlight {
+    background-color: #fff3cd;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+    .note-actions {
+        flex-direction: column;
+    }
+    
+    .note-actions .btn {
+        margin-bottom: 0.5rem;
+    }
+}

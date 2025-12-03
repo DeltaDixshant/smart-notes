@@ -41,17 +41,18 @@ jobs:
       
       - name: Run tests with coverage
         run: |
-          pytest --cov=.  --cov-report=xml --cov-report=html -v || echo "No tests found"
+          pytest --cov=. --cov-report=xml --cov-report=html -v || echo "No tests found"
         continue-on-error: true
       
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
           path: |
             coverage.xml
             htmlcov/
           retention-days: 30
+        continue-on-error: true
 
   sonarcloud-analysis:
     name: SonarCloud Code Analysis
@@ -67,8 +68,8 @@ jobs:
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets. GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets. SONAR_TOKEN }}
 
   security-scan:
     name: Security Scanning
@@ -86,11 +87,12 @@ jobs:
         continue-on-error: true
       
       - name: Upload Security Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: security-report
           path: bandit-report. json
           retention-days: 30
+        continue-on-error: true
 
   build-docker-image:
     name: Build Docker Image
@@ -107,14 +109,14 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t smart-notes:${{ github.sha }} .
-          docker tag smart-notes:${{ github.sha }} smart-notes:latest
+          docker tag smart-notes:${{ github. sha }} smart-notes:latest
       
       - name: Save Docker image
         run: |
           docker save smart-notes:latest | gzip > smart-notes-image.tar.gz
       
       - name: Upload Docker image artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: docker-image
           path: smart-notes-image.tar.gz

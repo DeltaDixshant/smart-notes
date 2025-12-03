@@ -140,7 +140,7 @@ jobs:
       
       - name: Load Docker image
         run: |
-          docker load < smart-notes-image.tar. gz
+          docker load < smart-notes-image.tar.gz
       
       - name: Run application in background
         run: |
@@ -201,7 +201,7 @@ jobs:
         id: provision
         run: |
           chmod +x . github/scripts/deploy-to-ec2.sh
-          . /. github/scripts/deploy-to-ec2.sh
+          ./. github/scripts/deploy-to-ec2.sh
       
       - name: Display Deployment Information
         run: |

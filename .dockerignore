@@ -1,0 +1,25 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+ENV/
+.  git
+.gitignore
+*. log
+. c9/
+.  vscode/
+.  idea/
+*. swp
+*.db
+*.sqlite
+. env
+secrets/
+*.pem
+*.key
+README.md
+. github/
+htmlcov/
+*. tar.gz

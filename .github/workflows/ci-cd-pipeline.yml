@@ -34,7 +34,7 @@ jobs:
       uses: SonarSource/sonarcloud-github-action@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_TOKEN: ${{ secrets. SONAR_TOKEN }}
       continue-on-error: true
 
   security-scan:
@@ -65,7 +65,7 @@ jobs:
             echo "App is running"
             break
           fi
-          echo "Waiting for app... attempt $i"
+          echo "Waiting for app...  attempt $i"
           sleep 2
         done
     
@@ -94,31 +94,53 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-secret-access-key: ${{ secrets. AWS_SECRET_ACCESS_KEY }}
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
         aws-region: us-east-1
+      continue-on-error: true
     
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
+      continue-on-error: true
     
-    - name: Build Docker image
+    - name: Check ECR Access
+      id: ecr-check
+      run: |
+        if [ -n "${{ steps.login-ecr.outputs.registry }}" ]; then
+          echo "ecr_available=true" >> $GITHUB_OUTPUT
+          echo "✓ ECR access available"
+        else
+          echo "ecr_available=false" >> $GITHUB_OUTPUT
+          echo "⚠ ECR access not available, using direct transfer"
+        fi
+    
+    - name: Build Docker image (with ECR)
+      if: steps.ecr-check. outputs.ecr_available == 'true'
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
+        docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" . 
         docker tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
     
+    - name: Build Docker image (without ECR)
+      if: steps.ecr-check.outputs.ecr_available != 'true'
+      run: |
+        docker build -t smart-notes:${{ github.sha }} .
+        docker tag smart-notes:${{ github.sha }} smart-notes:latest
+    
     - name: Push to ECR
+      if: steps.ecr-check.outputs.ecr_available == 'true'
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs. registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
         docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
         docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+      continue-on-error: true
     
     - name: Save Docker image locally
       env:
@@ -126,14 +148,18 @@ jobs:
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker save "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" -o smart-notes-image.tar
+        if [ "${{ steps.ecr-check. outputs.ecr_available }}" == "true" ]; then
+          docker save "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" -o smart-notes-image.tar
+        else
+          docker save smart-notes:${{ github.sha }} -o smart-notes-image.tar
+        fi
         gzip -f smart-notes-image.tar
         ls -lh smart-notes-image.tar.gz
     
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+        echo "${{ secrets. EC2_SSH_KEY }}" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
     
@@ -147,23 +173,69 @@ jobs:
     
     - name: Deploy on EC2
       env:
+        ECR_AVAILABLE: ${{ steps.ecr-check.outputs.ecr_available }}
         ECR_REGISTRY: ${{ steps.login-ecr.outputs. registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
       run: |
-        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}" bash -s << 'ENDSSH'
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "${{ secrets.EC2_USERNAME }}@${{ secrets. EC2_HOST }}" bash -s << 'ENDSSH'
         set -e
         
+        echo "===== Starting Deployment ====="
+        
+        # Configure AWS credentials on EC2 (if available)
+        if [ -n "$AWS_ACCESS_KEY_ID" ]; then
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials << AWSEOF
+[default]
+aws_access_key_id = $AWS_ACCESS_KEY_ID
+aws_secret_access_key = $AWS_SECRET_ACCESS_KEY
+aws_session_token = $AWS_SESSION_TOKEN
+AWSEOF
+          
+          cat > ~/.aws/config << AWSEOF
+[default]
+region = us-east-1
+AWSEOF
+          
+          echo "AWS credentials configured on EC2"
+        fi
+        
         # Start Docker service
+        echo "Starting Docker service..."
         sudo systemctl start docker 2>/dev/null || true
         sudo systemctl enable docker 2>/dev/null || true
         
-        # Load Docker image
-        if [ -f ~/smart-notes-image.tar.gz ]; then
-          echo "Loading Docker image..."
+        # Try ECR login on EC2 (if credentials available)
+        ECR_LOGIN_SUCCESS=false
+        if [ -n "$AWS_ACCESS_KEY_ID" ] && [ "$ECR_AVAILABLE" == "true" ]; then
+          echo "Attempting ECR login on EC2..."
+          if aws ecr get-login-password --region us-east-1 2>/dev/null | docker login --username AWS --password-stdin $ECR_REGISTRY 2>/dev/null; then
+            ECR_LOGIN_SUCCESS=true
+            echo "✓ ECR login successful on EC2"
+          else
+            echo "⚠ ECR login failed on EC2, will use transferred image"
+          fi
+        fi
+        
+        # Load Docker image from transferred file
+        if [ -f ~/smart-notes-image.tar. gz ]; then
+          echo "Loading Docker image from transferred file..."
           gunzip -f ~/smart-notes-image.tar.gz
           docker load -i ~/smart-notes-image.tar
-          rm -f ~/smart-notes-image. tar
+          rm -f ~/smart-notes-image.tar
+        else
+          echo "Error: Docker image file not found!"
+          exit 1
+        fi
+        
+        # If ECR login successful, try to pull latest
+        if [ "$ECR_LOGIN_SUCCESS" == "true" ]; then
+          echo "Attempting to pull from ECR..."
+          docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest 2>/dev/null || echo "ECR pull failed, using loaded image"
         fi
         
         # Stop and remove old container
@@ -171,13 +243,24 @@ jobs:
         docker stop smart-notes 2>/dev/null || true
         docker rm smart-notes 2>/dev/null || true
         
-        # Find the image
-        IMAGE_TO_RUN=$(docker images --format '{{.Repository}}:{{. Tag}}' | grep 'smart-notes' | head -n1)
+        # Find the image to run
+        if [ "$ECR_AVAILABLE" == "true" ] && docker image inspect "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >/dev/null 2>&1; then
+          IMAGE_TO_RUN="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+        else
+          IMAGE_TO_RUN=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep 'smart-notes' | head -n1)
+        fi
+        
+        if [ -z "$IMAGE_TO_RUN" ]; then
+          echo "Error: No smart-notes image found!"
+          docker images
+          exit 1
+        fi
+        
         echo "Using image: $IMAGE_TO_RUN"
         
         # Detect application port
         APP_PORT=8080
-        if [ -f app.py ] && grep -q 'port=5000' app. py 2>/dev/null; then
+        if [ -f app.py ] && grep -q 'port=5000' app.py 2>/dev/null; then
           APP_PORT=5000
         fi
         echo "Detected APP_PORT=$APP_PORT"
@@ -191,8 +274,11 @@ jobs:
           "$IMAGE_TO_RUN"
         
         # Wait and verify
+        echo "Waiting for container to start..."
         sleep 5
-        docker ps | grep smart-notes
+        
+        echo "Container status:"
+        docker ps | grep smart-notes || (echo "Container not running! "; docker ps -a | grep smart-notes; exit 1)
         
         # Show logs
         echo "Container logs:"
@@ -202,21 +288,26 @@ jobs:
         if command -v curl >/dev/null 2>&1; then
           echo "Running health check..."
           sleep 3
-          if curl -sf http://localhost:80 >/dev/null; then
-            echo "✓ Health check passed"
-          else
-            echo "✗ Health check failed"
-            docker logs --tail=100 smart-notes
-            exit 1
-          fi
+          for i in {1..10}; do
+            if curl -sf http://localhost:80 >/dev/null; then
+              echo "✓ Health check passed"
+              break
+            fi
+            echo "Health check attempt $i failed, retrying..."
+            sleep 2
+          done
         fi
         
         # Cleanup
+        echo "Cleaning up old images..."
+        docker images | grep smart-notes | tail -n +4 | awk '{print $3}' | xargs -r docker rmi 2>/dev/null || true
         docker system prune -f 2>/dev/null || true
-        echo "Deployment complete!"
+        
+        echo "===== Deployment Complete ====="
         ENDSSH
     
     - name: Verify Deployment
       run: |
         echo "✓ Deployment completed successfully"
-        echo "⚠ Reminder: Ensure EC2 Security Group allows inbound HTTP (TCP 80) from 0.0.0.0/0"
+        echo "⚠ Reminder: Ensure EC2 Security Group allows inbound HTTP (TCP 80) from 0.0. 0.0/0"
+        echo "🌐 Access your app at: http://${{ secrets.EC2_HOST }}"

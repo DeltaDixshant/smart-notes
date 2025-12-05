@@ -27,13 +27,13 @@ jobs:
     
     - name: Run tests with coverage
       run: |
-        python -m pytest tests/ -v --cov=.  --cov-report=xml --cov-report=term
+        python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=term
     
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets. SONAR_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   security-scan:
     runs-on: ubuntu-latest
@@ -70,7 +70,7 @@ jobs:
   build-and-deploy:
     needs: test-and-quality
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github. event_name == 'push'
     
     steps:
     - uses: actions/checkout@v3
@@ -89,7 +89,7 @@ jobs:
     
     - name: Build Docker image
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs. registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
@@ -98,7 +98,7 @@ jobs:
     
     - name: Push to ECR
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs. registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
@@ -107,7 +107,7 @@ jobs:
     
     - name: Save Docker image locally
       env:
-        ECR_REGISTRY: ${{ steps. login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr. outputs.registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
@@ -115,14 +115,14 @@ jobs:
     
     - name: Setup SSH
       run: |
-        mkdir -p ~/. ssh
+        mkdir -p ~/.ssh
         echo "${{ secrets. EC2_SSH_KEY }}" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -H ${{ secrets. EC2_HOST }} >> ~/.ssh/known_hosts
     
     - name: Test SSH Connection
       run: |
-        ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets. EC2_HOST }} "echo 'SSH connection successful! '"
+        ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful! '"
     
     - name: Transfer Docker image to EC2
       run: |

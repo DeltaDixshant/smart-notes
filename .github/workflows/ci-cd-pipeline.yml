@@ -58,7 +58,7 @@ jobs:
     
     - name: Push to ECR
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs. registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
@@ -71,7 +71,7 @@ jobs:
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker save $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -o smart-notes-image.tar. gz
+        docker save $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -o smart-notes-image.tar.gz
     
     - name: Setup SSH
       run: |
@@ -94,7 +94,7 @@ jobs:
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i ~/. ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
           # Load the Docker image
           docker load -i ~/smart-notes-image.tar.gz
           
@@ -107,7 +107,7 @@ jobs:
             --name smart-notes \
             -p 80:8000 \
             --restart unless-stopped \
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env. IMAGE_TAG }}
           
           # Clean up
           rm ~/smart-notes-image.tar.gz

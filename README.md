@@ -21,3 +21,4 @@ A Flask-based note-taking application with CI/CD pipeline.
 - Security scanning
 - Docker containerization
 
+# Deploy test

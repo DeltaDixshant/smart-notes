@@ -14,21 +14,17 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-
     - name: Run tests with coverage
       run: |
         python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=term
-
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@master
       env:
@@ -41,24 +37,20 @@ jobs:
     continue-on-error: true
     steps:
     - uses: actions/checkout@v4
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-
     - name: Start app for ZAP scan
       run: |
         python app.py &
         sleep 10
         curl -sf http://localhost:8080 || echo "App starting..."
         sleep 5
-
     - name: ZAP Baseline Scan
       uses: zaproxy/action-baseline@v0.12.0
       with:
@@ -73,7 +65,6 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
     - uses: actions/checkout@v4
-
     - name: Configure AWS Credentials (Runner)
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -81,11 +72,9 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
         aws-region: us-east-1
-
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
-
     - name: Build Docker image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -94,7 +83,6 @@ jobs:
       run: |
         docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
         docker tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
-
     - name: Push to ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -103,7 +91,6 @@ jobs:
       run: |
         docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
         docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
-
     - name: Save Docker image locally
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -113,19 +100,16 @@ jobs:
         docker save "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" -o smart-notes-image.tar
         gzip -f smart-notes-image.tar
         ls -lh smart-notes-image.tar.gz
-
     - name: Setup SSH (Runner)
       run: |
         mkdir -p ~/.ssh
         echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
-
     - name: Transfer Docker image to EC2
       run: |
         scp -i ~/.ssh/deploy_key smart-notes-image.tar.gz "${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/smart-notes-image.tar.gz"
-
-    - name: Deploy on EC2 (inline commands, no heredoc)
+    - name: Deploy on EC2 (inline SSH; no heredoc)
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: smart-notes
@@ -160,7 +144,6 @@ jobs:
         fi;
         docker system prune -f || true;
         "
-
     - name: Reminder: Security Group
       run: |
         echo "Ensure EC2 Security Group has inbound rule: HTTP TCP 80 from 0.0.0.0/0"

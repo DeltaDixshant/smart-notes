@@ -169,7 +169,7 @@ jobs:
     
     - name: Transfer Docker image to EC2
       run: |
-        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no smart-notes-image.tar. gz "${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/smart-notes-image.tar. gz"
+        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no smart-notes-image.tar.gz "${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/smart-notes-image.tar. gz"
     
     - name: Deploy on EC2 with Data Persistence
       run: |

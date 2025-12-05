@@ -24,3 +24,4 @@ A Flask-based note-taking application with CI/CD pipeline.
 # Deploy test
 
 ## Deployment Status
+

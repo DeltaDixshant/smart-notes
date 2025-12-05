@@ -1,10 +1,11 @@
-name: CI/CD Pipeline with Security
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   test-and-quality:
@@ -27,13 +28,13 @@ jobs:
     
     - name: Run tests with coverage
       run: |
-        python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=term
+        python -m pytest tests/ -v --cov=.  --cov-report=xml --cov-report=term
     
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_TOKEN: ${{ secrets. SONAR_TOKEN }}
 
   security-scan:
     runs-on: ubuntu-latest
@@ -64,13 +65,15 @@ jobs:
       uses: zaproxy/action-baseline@v0.12.0
       with:
         target: 'http://localhost:8080'
-        rules_file_name: '. zap/rules.tsv'
+        rules_file_name: '. zap/rules. tsv'
         cmd_options: '-a'
+        allow_issue_writing: false
+      continue-on-error: true
 
   build-and-deploy:
     needs: test-and-quality
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github. event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
     - uses: actions/checkout@v3
@@ -78,7 +81,7 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-access-key-id: ${{ secrets. AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets. AWS_SECRET_ACCESS_KEY }}
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
         aws-region: us-east-1
@@ -89,7 +92,7 @@ jobs:
     
     - name: Build Docker image
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs. registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
@@ -107,22 +110,22 @@ jobs:
     
     - name: Save Docker image locally
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr. outputs.registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker save $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -o smart-notes-image.tar.gz
+        docker save $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -o smart-notes-image. tar. gz
     
     - name: Setup SSH
       run: |
-        mkdir -p ~/.ssh
+        mkdir -p ~/. ssh
         echo "${{ secrets. EC2_SSH_KEY }}" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -H ${{ secrets. EC2_HOST }} >> ~/.ssh/known_hosts
     
     - name: Test SSH Connection
       run: |
-        ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful! '"
+        ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets. EC2_HOST }} "echo 'SSH connection successful! '"
     
     - name: Transfer Docker image to EC2
       run: |

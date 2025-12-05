@@ -131,12 +131,12 @@ jobs:
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        ssh -i ~/.ssh/deploy_key "${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}" bash -euxo pipefail -s <<EOF
+        ssh -i ~/.ssh/deploy_key "${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}" bash -euxo pipefail -s <<'EOS'
         # Ensure Docker is installed and running
         sudo systemctl start docker || true
         sudo systemctl enable docker || true
 
-        # Load the image from tarball
+        # Load the image from tarball (if present)
         if [ -f ~/smart-notes-image.tar.gz ]; then
           gunzip -f ~/smart-notes-image.tar.gz
           docker load -i ~/smart-notes-image.tar
@@ -147,43 +147,38 @@ jobs:
         docker stop smart-notes || true
         docker rm smart-notes || true
 
-        # Decide which image to run (prefer pushed SHA, else newest local)
-        IMAGE_TO_RUN="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
-        if ! docker image inspect "\$IMAGE_TO_RUN" >/dev/null 2>&1; then
-          IMAGE_TO_RUN="\$(docker images --format '{{.Repository}}:{{.Tag}}' \
-            | grep '^${ECR_REGISTRY}/${ECR_REPOSITORY}:' \
-            | head -n1)"
-        fi
-        echo "Using image: \$IMAGE_TO_RUN"
+        # Prefer the most recent smart-notes image if specific SHA not present locally
+        IMAGE_TO_RUN="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '/smart-notes:' | head -n1)"
+        echo "Using image: ${IMAGE_TO_RUN}"
 
-        # Detect app port (checks 8080 vs 5000 by inspecting app.py)
+        # Detect app port by scanning app.py (fallback 8080)
         APP_PORT=8080
-        if grep -q 'app.run' app.py 2>/dev/null && grep -q 'port=5000' app.py 2>/dev/null; then
+        if grep -q 'port=5000' app.py 2>/dev/null; then
           APP_PORT=5000
         fi
-        echo "Detected APP_PORT=\$APP_PORT"
+        echo "Detected APP_PORT=${APP_PORT}"
 
         # Run container mapping host 80 to app port
         HOST_PORT=80
         docker run -d \
           --name smart-notes \
-          -p "\${HOST_PORT}:\${APP_PORT}" \
+          -p "${HOST_PORT}:${APP_PORT}" \
           --restart unless-stopped \
-          "\$IMAGE_TO_RUN"
+          "${IMAGE_TO_RUN}"
 
         # Show status and logs
         sleep 5
         docker ps
         docker logs --tail=100 smart-notes || true
 
-        # Local health check
+        # Local health check on EC2
         if command -v curl >/dev/null 2>&1; then
-          curl -sSf "http://localhost:\${HOST_PORT}" >/dev/null && echo "Local health check OK" || (echo "Local health check FAILED"; docker logs --tail=200 smart-notes; exit 1)
+          curl -sSf "http://localhost:${HOST_PORT}" >/dev/null && echo "Local health check OK" || (echo "Local health check FAILED"; docker logs --tail=200 smart-notes; exit 1)
         fi
 
         # Optional cleanup
         docker system prune -f || true
-        EOF
+EOS
 
     - name: Reminder: Security Group
       run: |

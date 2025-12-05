@@ -52,13 +52,13 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t smart-notes-app:latest .
-          docker save smart-notes-app:latest | gzip > smart-notes-image.tar.gz
+          docker save smart-notes-app:latest | gzip > smart-notes-image. tar.gz
       
       - name: Upload Docker image
         uses: actions/upload-artifact@v4
         with:
           name: docker-image
-          path: smart-notes-image.tar.gz
+          path: smart-notes-image.tar. gz
           retention-days: 7
 
   deploy-to-ec2:
@@ -75,14 +75,14 @@ jobs:
       
       - name: Setup SSH
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/. ssh/deploy_key
+          mkdir -p ~/. ssh
+          echo "${{ secrets. EC2_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets. EC2_HOST }} >> ~/.ssh/known_hosts
       
       - name: Transfer Docker image to EC2
         run: |
-          scp -i ~/.ssh/deploy_key smart-notes-image.tar. gz ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/
+          scp -i ~/.ssh/deploy_key smart-notes-image. tar.gz ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/
       
       - name: Deploy on EC2
         run: |
@@ -94,7 +94,7 @@ jobs:
             sleep 5
             docker ps
             curl -f http://localhost || echo "App starting..."
-            rm ~/smart-notes-image.tar. gz
+            rm ~/smart-notes-image.tar.gz
           ENDSSH
       
       - name: Display Deployment Info

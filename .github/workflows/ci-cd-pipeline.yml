@@ -18,7 +18,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3. 11'
+        python-version: '3.11'
     
     - name: Install dependencies
       run: |
@@ -64,7 +64,7 @@ jobs:
       uses: zaproxy/action-baseline@v0.12.0
       with:
         target: 'http://localhost:8080'
-        rules_file_name: '. zap/rules. tsv'
+        rules_file_name: '. zap/rules.tsv'
         cmd_options: '-a'
 
   build-and-deploy:
@@ -98,7 +98,7 @@ jobs:
     
     - name: Push to ECR
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs. registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
@@ -107,11 +107,11 @@ jobs:
     
     - name: Save Docker image locally
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps. login-ecr.outputs.registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker save $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -o smart-notes-image. tar. gz
+        docker save $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -o smart-notes-image.tar.gz
     
     - name: Setup SSH
       run: |
@@ -122,7 +122,7 @@ jobs:
     
     - name: Test SSH Connection
       run: |
-        ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful! '"
+        ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets. EC2_HOST }} "echo 'SSH connection successful! '"
     
     - name: Transfer Docker image to EC2
       run: |

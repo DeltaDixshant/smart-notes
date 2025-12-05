@@ -16,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3. 9'
+        python-version: '3.11'
     
     - name: Install dependencies
       run: |
@@ -71,18 +71,18 @@ jobs:
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker save $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -o smart-notes-image. tar.gz
+        docker save $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -o smart-notes-image.tar. gz
     
     - name: Setup SSH
       run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+        mkdir -p ~/. ssh
+        echo "${{ secrets. EC2_SSH_KEY }}" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
-        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/. ssh/known_hosts
     
     - name: Test SSH Connection
       run: |
-        ssh -i ~/. ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful! '"
+        ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful! '"
     
     - name: Transfer Docker image to EC2
       run: |
@@ -90,13 +90,13 @@ jobs:
     
     - name: Deploy on EC2
       env:
-        ECR_REGISTRY: ${{ steps. login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i ~/. ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
           # Load the Docker image
-          docker load -i ~/smart-notes-image.tar.gz
+          docker load -i ~/smart-notes-image.tar. gz
           
           # Stop and remove existing container
           docker stop smart-notes || true

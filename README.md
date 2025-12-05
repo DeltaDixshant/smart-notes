@@ -20,3 +20,4 @@ A Flask-based note-taking application with CI/CD pipeline.
 - SonarCloud code analysis
 - Security scanning
 - Docker containerization
+

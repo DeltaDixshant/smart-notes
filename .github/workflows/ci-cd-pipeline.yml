@@ -94,9 +94,9 @@ jobs:
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        ssh -i ~/. ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
+        ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} << 'EOF'
           # Load the Docker image
-          docker load -i ~/smart-notes-image.tar. gz
+          docker load -i ~/smart-notes-image.tar.gz
           
           # Stop and remove existing container
           docker stop smart-notes || true
@@ -107,7 +107,7 @@ jobs:
             --name smart-notes \
             -p 80:8000 \
             --restart unless-stopped \
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env. IMAGE_TAG }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           
           # Clean up
           rm ~/smart-notes-image.tar.gz

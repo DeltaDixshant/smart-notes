@@ -192,7 +192,7 @@ jobs:
         sudo systemctl enable docker 2>/dev/null || true
         
         # Load Docker image from transferred file
-        if [ -f ~/smart-notes-image.tar. gz ]; then
+        if [ -f ~/smart-notes-image.tar.gz ]; then
           echo "Loading Docker image from transferred file..."
           gunzip -f ~/smart-notes-image.tar.gz
           docker load -i ~/smart-notes-image.tar

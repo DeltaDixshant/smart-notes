@@ -27,14 +27,14 @@ jobs:
     
     - name: Run tests with coverage
       run: |
-        python -m pytest tests/ -v --cov=.  --cov-report=xml --cov-report=term
+        python -m pytest tests/ -v --cov=.   --cov-report=xml --cov-report=term
       continue-on-error: false
     
     - name: SonarCloud Scan
       uses: SonarSource/sonarcloud-github-action@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_TOKEN: ${{ secrets. SONAR_TOKEN }}
       continue-on-error: true
 
   security-scan:
@@ -65,7 +65,7 @@ jobs:
             echo "App is running"
             break
           fi
-          echo "Waiting for app...  attempt $i"
+          echo "Waiting for app...   attempt $i"
           sleep 2
         done
     
@@ -73,7 +73,7 @@ jobs:
       uses: zaproxy/action-baseline@v0.12.0
       with:
         target: 'http://localhost:8080'
-        rules_file_name: '. zap/rules. tsv'
+        rules_file_name: '.  zap/rules. tsv'
         cmd_options: '-a'
         allow_issue_writing: false
       continue-on-error: true
@@ -94,7 +94,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-secret-access-key: ${{ secrets. AWS_SECRET_ACCESS_KEY }}
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
         aws-region: us-east-1
       continue-on-error: true
@@ -122,19 +122,19 @@ jobs:
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" . 
+        docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
         docker tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
     
     - name: Build Docker image (without ECR)
-      if: steps.ecr-check.outputs.ecr_available != 'true'
+      if: steps.ecr-check.outputs. ecr_available != 'true'
       run: |
         docker build -t smart-notes:${{ github.sha }} .
         docker tag smart-notes:${{ github.sha }} smart-notes:latest
     
     - name: Push to ECR
-      if: steps. ecr-check.outputs.ecr_available == 'true'
+      if: steps.ecr-check.outputs.ecr_available == 'true'
       env:
-        ECR_REGISTRY: ${{ steps. login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
@@ -144,22 +144,24 @@ jobs:
     
     - name: Save Docker image locally
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs. registry }}
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        if [ "${{ steps.ecr-check.outputs.ecr_available }}" == "true" ]; then
+        if [ "${{ steps.ecr-check. outputs.ecr_available }}" == "true" ]; then
           docker save "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" -o smart-notes-image.tar
         else
           docker save smart-notes:${{ github.sha }} -o smart-notes-image.tar
         fi
         gzip -f smart-notes-image.tar
+        echo "Image saved successfully:"
         ls -lh smart-notes-image.tar.gz
+        file smart-notes-image.tar.gz
     
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets. EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
     
@@ -169,14 +171,26 @@ jobs:
     
     - name: Transfer Docker image to EC2
       run: |
-        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no smart-notes-image.tar.gz "${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/smart-notes-image.tar. gz"
+        echo "Transferring image to EC2..."
+        scp -v -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no smart-notes-image.tar.gz "${{ secrets.EC2_USERNAME }}@${{ secrets. EC2_HOST }}:~/smart-notes-image.tar.gz"
+        echo "Verifying transfer..."
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}" "ls -lh ~/smart-notes-image.tar.gz"
     
     - name: Deploy on EC2 with Data Persistence
       run: |
-        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "${{ secrets. EC2_USERNAME }}@${{ secrets.EC2_HOST }}" 'bash -s' << 'ENDSSH'
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "${{ secrets.EC2_USERNAME }}@${{ secrets. EC2_HOST }}" 'bash -s' << 'ENDSSH'
         set -e
         
         echo "===== Starting Deployment with Data Persistence ====="
+        
+        # Verify image file exists
+        if [ !  -f ~/smart-notes-image.tar.gz ]; then
+          echo "Error: Docker image file not found at ~/smart-notes-image.tar.gz"
+          ls -la ~/
+          exit 1
+        fi
+        
+        echo "Docker image file found: $(ls -lh ~/smart-notes-image.tar.gz)"
         
         # Start Docker service
         echo "Starting Docker service..."
@@ -196,15 +210,16 @@ jobs:
         fi
         
         # Load new Docker image
-        if [ -f ~/smart-notes-image.tar.gz ]; then
-          echo "Loading Docker image..."
-          gunzip -f ~/smart-notes-image.tar.gz
-          docker load -i ~/smart-notes-image.tar
-          rm -f ~/smart-notes-image.tar
-        else
-          echo "Error: Docker image file not found!"
+        echo "Loading Docker image..."
+        gunzip -f ~/smart-notes-image.tar.gz
+        
+        if [ !  -f ~/smart-notes-image.tar ]; then
+          echo "Error: Failed to decompress image"
           exit 1
         fi
+        
+        docker load -i ~/smart-notes-image.tar
+        rm -f ~/smart-notes-image.tar
         
         # Stop old container
         echo "Stopping old container..."
@@ -216,6 +231,7 @@ jobs:
         
         if [ -z "$IMAGE_TO_RUN" ]; then
           echo "Error: No smart-notes image found!"
+          echo "Available images:"
           docker images
           exit 1
         fi
@@ -229,8 +245,7 @@ jobs:
         fi
         echo "App will run on port: $APP_PORT"
         
-        # Run container with volume mounted to ENTIRE /app directory
-        # This preserves ALL data without code changes
+        # Run container with volume mounted
         echo "Starting container with persistent storage..."
         docker run -d \
           --name smart-notes \
@@ -265,7 +280,7 @@ jobs:
             HEALTH_PASSED=true
             break
           fi
-          echo "Waiting for app... attempt $i/15"
+          echo "Waiting for app...   attempt $i/15"
           sleep 2
         done
         

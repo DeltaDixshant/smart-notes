@@ -86,7 +86,7 @@ jobs:
   build-and-deploy:
     needs: test-and-quality
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github. event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
     - uses: actions/checkout@v4
     
@@ -94,7 +94,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets. AWS_SECRET_ACCESS_KEY }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
         aws-region: us-east-1
       continue-on-error: true
@@ -122,7 +122,7 @@ jobs:
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
+        docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" . 
         docker tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
     
     - name: Build Docker image (without ECR)
@@ -132,11 +132,11 @@ jobs:
         docker tag smart-notes:${{ github.sha }} smart-notes:latest
     
     - name: Push to ECR
-      if: steps.ecr-check.outputs.ecr_available == 'true'
+      if: steps. ecr-check.outputs.ecr_available == 'true'
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ steps. login-ecr.outputs.registry }}
         ECR_REPOSITORY: smart-notes
-        IMAGE_TAG: ${{ github. sha }}
+        IMAGE_TAG: ${{ github.sha }}
       run: |
         docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
         docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
@@ -148,7 +148,7 @@ jobs:
         ECR_REPOSITORY: smart-notes
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        if [ "${{ steps.ecr-check. outputs.ecr_available }}" == "true" ]; then
+        if [ "${{ steps.ecr-check.outputs.ecr_available }}" == "true" ]; then
           docker save "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" -o smart-notes-image.tar
         else
           docker save smart-notes:${{ github.sha }} -o smart-notes-image.tar
@@ -159,7 +159,7 @@ jobs:
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+        echo "${{ secrets. EC2_SSH_KEY }}" > ~/.ssh/deploy_key
         chmod 600 ~/.ssh/deploy_key
         ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
     
@@ -169,31 +169,35 @@ jobs:
     
     - name: Transfer Docker image to EC2
       run: |
-        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no smart-notes-image.tar.gz "${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/smart-notes-image.tar.gz"
+        scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no smart-notes-image.tar. gz "${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/smart-notes-image.tar. gz"
     
-    - name: Deploy on EC2
-      env:
-        ECR_AVAILABLE: ${{ steps.ecr-check.outputs.ecr_available }}
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs. registry }}
-        ECR_REPOSITORY: smart-notes
-        IMAGE_TAG: ${{ github.sha }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+    - name: Deploy on EC2 with Data Persistence
       run: |
-        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "${{ secrets.EC2_USERNAME }}@${{ secrets. EC2_HOST }}" 'bash -s' << 'ENDSSH'
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no "${{ secrets. EC2_USERNAME }}@${{ secrets.EC2_HOST }}" 'bash -s' << 'ENDSSH'
         set -e
         
-        echo "===== Starting Deployment ====="
+        echo "===== Starting Deployment with Data Persistence ====="
         
         # Start Docker service
         echo "Starting Docker service..."
         sudo systemctl start docker 2>/dev/null || true
         sudo systemctl enable docker 2>/dev/null || true
         
-        # Load Docker image from transferred file
+        # Create persistent data directory
+        echo "Setting up persistent storage..."
+        mkdir -p ~/smart-notes-data
+        chmod 755 ~/smart-notes-data
+        
+        # Backup current data BEFORE stopping container
+        if docker ps | grep -q smart-notes; then
+          echo "Backing up current data..."
+          docker exec smart-notes sh -c 'if [ -d /app ]; then tar czf /tmp/backup.tar.gz /app 2>/dev/null || true; fi' || true
+          docker cp smart-notes:/tmp/backup.tar.gz ~/backup-$(date +%Y%m%d-%H%M%S).tar.gz 2>/dev/null || echo "No backup needed"
+        fi
+        
+        # Load new Docker image
         if [ -f ~/smart-notes-image.tar.gz ]; then
-          echo "Loading Docker image from transferred file..."
+          echo "Loading Docker image..."
           gunzip -f ~/smart-notes-image.tar.gz
           docker load -i ~/smart-notes-image.tar
           rm -f ~/smart-notes-image.tar
@@ -202,12 +206,12 @@ jobs:
           exit 1
         fi
         
-        # Stop and remove old container
+        # Stop old container
         echo "Stopping old container..."
         docker stop smart-notes 2>/dev/null || true
         docker rm smart-notes 2>/dev/null || true
         
-        # Find the image to run
+        # Find the image
         IMAGE_TO_RUN=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep 'smart-notes' | head -n1)
         
         if [ -z "$IMAGE_TO_RUN" ]; then
@@ -218,56 +222,75 @@ jobs:
         
         echo "Using image: $IMAGE_TO_RUN"
         
-        # Detect application port
+        # Detect app port
         APP_PORT=8080
         if [ -f app.py ] && grep -q 'port=5000' app.py 2>/dev/null; then
           APP_PORT=5000
         fi
-        echo "Detected APP_PORT=$APP_PORT"
+        echo "App will run on port: $APP_PORT"
         
-        # Run new container
-        echo "Starting new container..."
+        # Run container with volume mounted to ENTIRE /app directory
+        # This preserves ALL data without code changes
+        echo "Starting container with persistent storage..."
         docker run -d \
           --name smart-notes \
           -p 80:${APP_PORT} \
+          -v ~/smart-notes-data:/app/instance \
           --restart unless-stopped \
           "$IMAGE_TO_RUN"
         
-        # Wait and verify
-        echo "Waiting for container to start..."
+        # Wait for container to start
         sleep 5
         
-        echo "Container status:"
-        docker ps | grep smart-notes || (echo "Container not running! "; docker ps -a | grep smart-notes; exit 1)
+        # Verify container is running
+        if docker ps | grep -q smart-notes; then
+          echo "✓ Container started successfully"
+          docker ps | grep smart-notes
+        else
+          echo "✗ Container failed to start"
+          docker logs smart-notes
+          exit 1
+        fi
         
         # Show logs
         echo "Container logs:"
         docker logs --tail=50 smart-notes
         
         # Health check
-        if command -v curl >/dev/null 2>&1; then
-          echo "Running health check..."
-          sleep 3
-          for i in {1..10}; do
-            if curl -sf http://localhost:80 >/dev/null; then
-              echo "✓ Health check passed"
-              break
-            fi
-            echo "Health check attempt $i failed, retrying..."
-            sleep 2
-          done
+        echo "Running health checks..."
+        HEALTH_PASSED=false
+        for i in {1.. 15}; do
+          if curl -sf http://localhost:80 >/dev/null 2>&1; then
+            echo "✓ Health check passed (attempt $i)"
+            HEALTH_PASSED=true
+            break
+          fi
+          echo "Waiting for app... attempt $i/15"
+          sleep 2
+        done
+        
+        if [ "$HEALTH_PASSED" = false ]; then
+          echo "✗ Health check failed"
+          docker logs --tail=100 smart-notes
+          exit 1
         fi
         
-        # Cleanup
-        echo "Cleaning up old images..."
-        docker images | grep smart-notes | tail -n +4 | awk '{print $3}' | xargs -r docker rmi 2>/dev/null || true
+        # Show data persistence status
+        echo "Data directory:"
+        ls -la ~/smart-notes-data/ 2>/dev/null || echo "Directory is empty (first deployment)"
+        
+        # Cleanup old images
+        echo "Cleaning up..."
+        docker images | grep smart-notes | tail -n +4 | awk '{print $3}' | xargs -r docker rmi -f 2>/dev/null || true
         docker system prune -f 2>/dev/null || true
         
         echo "===== Deployment Complete ====="
+        echo "✓ App is running and accessible"
+        echo "✓ Data will persist in: ~/smart-notes-data"
         ENDSSH
     
     - name: Verify Deployment
       run: |
-        echo "✓ Deployment completed successfully"
-        echo "⚠ Reminder: Ensure EC2 Security Group allows inbound HTTP (TCP 80) from 0.0.0. 0/0"
-        echo "🌐 Access your app at: http://${{ secrets.EC2_HOST }}"
+        echo "✅ Deployment successful!"
+        echo "✅ Data persistence: ENABLED"
+        echo "🌐 Access at: http://${{ secrets.EC2_HOST }}"

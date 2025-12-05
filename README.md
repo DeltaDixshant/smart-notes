@@ -22,3 +22,5 @@ A Flask-based note-taking application with CI/CD pipeline.
 - Docker containerization
 
 # Deploy test
+
+## Deployment Status
